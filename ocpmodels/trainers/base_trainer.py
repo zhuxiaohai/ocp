@@ -438,6 +438,7 @@ class BaseTrainer(ABC):
             new_dict = checkpoint["state_dict"]
 
         strict = self.config["task"].get("strict_load", True)
+        new_dict.pop('module.atomic_mass')
         load_state_dict(self.model, new_dict, strict=strict)
 
         if "optimizer" in checkpoint:
@@ -781,7 +782,10 @@ class BaseTrainer(ABC):
                 rank_results = np.load(rank_path, allow_pickle=True)
                 gather_results["ids"].extend(rank_results["ids"])
                 for key in keys:
-                    gather_results[key].extend(rank_results[key])
+                    if key.find("forces") >= 0:
+                        gather_results[key].extend(np.array_split(rank_results[key], np.cumsum(rank_results['chunk_idx'])[: -1]))
+                    else:
+                        gather_results[key].extend(rank_results[key])
                 os.remove(rank_path)
 
             # Because of how distributed sampler works, some system ids
@@ -789,9 +793,9 @@ class BaseTrainer(ABC):
             _, idx = np.unique(gather_results["ids"], return_index=True)
             gather_results["ids"] = np.array(gather_results["ids"])[idx]
             for k in keys:
-                if k == "forces":
+                if k.find("forces") >= 0:
                     gather_results[k] = np.concatenate(
-                        np.array(gather_results[k])[idx]
+                        [gather_results[k][idx_i] for idx_i in idx]
                     )
                 elif k == "chunk_idx":
                     gather_results[k] = np.cumsum(

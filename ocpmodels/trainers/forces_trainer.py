@@ -182,7 +182,7 @@ class ForcesTrainer(BaseTrainer):
             self.normalizers["target"].to(self.device)
             self.normalizers["grad_target"].to(self.device)
 
-        predictions = {"id": [], "energy": [], "forces": [], "chunk_idx": []}
+        predictions = {"id": [], "energy": [], "forces": [], "chunk_idx": [], "energy_label": [], "forces_label": []}
 
         for i, batch_list in tqdm(
             enumerate(data_loader),
@@ -191,6 +191,8 @@ class ForcesTrainer(BaseTrainer):
             desc="device {}".format(rank),
             disable=disable_tqdm,
         ):
+            if i >= 50:
+                break
             with torch.cuda.amp.autocast(enabled=self.scaler is not None):
                 out = self._forward(batch_list)
 
@@ -201,6 +203,16 @@ class ForcesTrainer(BaseTrainer):
                 out["forces"] = self.normalizers["grad_target"].denorm(
                     out["forces"]
                 )
+
+            target = {
+                "energy_label": torch.cat(
+                    [batch.y for batch in batch_list], dim=0
+                ),
+                "forces_label": torch.cat(
+                    [batch.force for batch in batch_list], dim=0
+                )
+            }
+
             if per_image:
                 systemids = [
                     str(i) + "_" + str(j)
@@ -224,14 +236,22 @@ class ForcesTrainer(BaseTrainer):
                         out["energy"].cpu().detach().to(torch.float32).numpy()
                     )
                     forces = out["forces"].cpu().detach().to(torch.float32)
+                    predictions["energy_label"].extend(target["energy_label"].cpu().detach().to(torch.float32).numpy())
+                    forces_label = target["forces_label"].cpu().detach().to(torch.float32)
                 else:
                     predictions["energy"].extend(
                         out["energy"].cpu().detach().to(torch.float16).numpy()
                     )
                     forces = out["forces"].cpu().detach().to(torch.float16)
+                    predictions["energy_label"].extend(target["energy_label"].cpu().detach().to(torch.float16).numpy())
+                    forces_label = target["forces_label"].cpu().detach().to(torch.float16)
                 per_image_forces = torch.split(forces, batch_natoms.tolist())
                 per_image_forces = [
                     force.numpy() for force in per_image_forces
+                ]
+                per_image_forces_label = torch.split(forces_label, batch_natoms.tolist())
+                per_image_forces_label = [
+                    force_label.numpy() for force_label in per_image_forces_label
                 ]
                 # evalAI only requires forces on free atoms
                 if results_file is not None:
@@ -250,22 +270,34 @@ class ForcesTrainer(BaseTrainer):
                             for free_force in _per_image_free_forces
                         ]
                     )
+                    _per_image_free_forces_label = [
+                        force_label[(fixed == 0).tolist()]
+                        for force_label, fixed in zip(
+                            per_image_forces_label, _per_image_fixed
+                        )
+                    ]
                     per_image_forces = _per_image_free_forces
+                    per_image_forces_label = _per_image_free_forces
                     predictions["chunk_idx"].extend(_chunk_idx)
                 predictions["forces"].extend(per_image_forces)
+                predictions["forces_label"].extend(per_image_forces_label)
             else:
                 predictions["energy"] = out["energy"].detach()
                 predictions["forces"] = out["forces"].detach()
+                predictions["energy_label"] = target["energy_label"].detach()
+                predictions["forces_label"] = target["forces_label"].detach()
                 if self.ema:
                     self.ema.restore()
                 return predictions
 
-        predictions["forces"] = np.array(predictions["forces"])
+        predictions["forces"] = np.concatenate(predictions["forces"])
         predictions["chunk_idx"] = np.array(predictions["chunk_idx"])
         predictions["energy"] = np.array(predictions["energy"])
         predictions["id"] = np.array(predictions["id"])
+        predictions["energy_label"] = np.array(predictions["energy_label"])
+        predictions["forces_label"] = np.concatenate(predictions["forces_label"])
         self.save_results(
-            predictions, results_file, keys=["energy", "forces", "chunk_idx"]
+            predictions, results_file, keys=["energy", "forces", "chunk_idx", "energy_label", "forces_label"]
         )
 
         if self.ema:
