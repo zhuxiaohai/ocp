@@ -191,8 +191,6 @@ class ForcesTrainer(BaseTrainer):
             desc="device {}".format(rank),
             disable=disable_tqdm,
         ):
-            if i >= 50:
-                break
             with torch.cuda.amp.autocast(enabled=self.scaler is not None):
                 out = self._forward(batch_list)
 
@@ -277,7 +275,7 @@ class ForcesTrainer(BaseTrainer):
                         )
                     ]
                     per_image_forces = _per_image_free_forces
-                    per_image_forces_label = _per_image_free_forces
+                    per_image_forces_label = _per_image_free_forces_label
                     predictions["chunk_idx"].extend(_chunk_idx)
                 predictions["forces"].extend(per_image_forces)
                 predictions["forces_label"].extend(per_image_forces_label)
