@@ -1,0 +1,67 @@
+trainer: forces
+
+dataset:
+  - src: data/s2ef/2M/train/
+    normalize_labels: True
+    target_mean: -0.7554450631141663
+    target_std: 2.887317180633545
+    grad_target_mean: 0.0
+    grad_target_std: 2.887317180633545
+  - src: data/s2ef/all/val_id/
+  - src: data/s2ef/all/val_id/
+
+logger: tensorboard
+
+task:
+  dataset: trajectory_lmdb
+  description: "Regressing to energies and forces for DFT trajectories from OCP"
+  type: regression
+  metric: mae
+  labels:
+    - potential energy
+  grad_input: atomic forces
+  train_on_free_atoms: True
+  eval_on_free_atoms: True
+  # Relaxation options
+  relax_dataset:
+    src: data/is2re/val_20/data.lmdb # path to lmdb of systems to be relaxed (uses same lmdbs as is2re)
+  write_pos: True
+  relaxation_steps: 200
+  num_relaxation_batches: 1
+  relax_opt:
+    maxstep: 0.04
+    memory: 50
+    damping: 1.0
+    alpha: 70.0
+    traj_dir: "ml-relaxations/is2rs-test"
+
+
+model:
+  name: schnet
+  hidden_channels: 1024
+  num_filters: 256
+  num_interactions: 5
+  num_gaussians: 200
+  cutoff: 6.0
+  use_pbc: True
+
+# *** Important note ***
+#   The total number of gpus used for this run was 8.
+#   If the global batch size (num_gpus * batch_size) is modified
+#   the lr_milestones and warmup_steps need to be adjusted accordingly.
+
+optim:
+  batch_size: 24
+  eval_batch_size: 24
+  num_workers: 16
+  lr_initial: 0.0001
+  lr_gamma: 0.1
+  lr_milestones: # steps at which lr_initial <- lr_initial * lr_gamma
+    - 52083
+    - 83333
+    - 104166
+  warmup_steps: 31250
+  warmup_factor: 0.2
+  max_epochs: 30
+  force_coefficient: 100
+

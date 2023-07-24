@@ -438,7 +438,10 @@ class BaseTrainer(ABC):
             new_dict = checkpoint["state_dict"]
 
         strict = self.config["task"].get("strict_load", True)
-        # new_dict.pop('module.atomic_mass')
+        try:
+            new_dict.pop('module.atomic_mass')
+        except:
+            pass
         load_state_dict(self.model, new_dict, strict=strict)
 
         if "optimizer" in checkpoint:

@@ -2,12 +2,13 @@ trainer: forces
 
 dataset:
   train:
-    src: data/oc22/s2ef/train
+    src: data/s2ef/ZnCrO_train_80K
     normalize_labels: False
   val:
-    src: data/oc22/s2ef/val_id
+    src: data/s2ef/ZnCrO_test_115
 
-logger: wandb
+logger: tensorboard
+
 
 task:
   dataset: oc22_lmdb

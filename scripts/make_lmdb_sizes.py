@@ -39,7 +39,7 @@ def main(args) -> None:
 
     pool = mp.Pool(assert_is_instance(args.num_workers, int))
     outputs = list(
-        tqdm(pool.imap(get_data, output_indices), total=len(indices))
+        tqdm(pool.imap(get_data, output_indices), total=len(output_indices))
     )
 
     indices = []

@@ -202,14 +202,24 @@ class ForcesTrainer(BaseTrainer):
                     out["forces"]
                 )
 
-            target = {
-                "energy_label": torch.cat(
-                    [batch.y for batch in batch_list], dim=0
-                ),
-                "forces_label": torch.cat(
-                    [batch.force for batch in batch_list], dim=0
-                )
-            }
+            try:
+                target = {
+                    "energy_label": torch.cat(
+                        [batch.y for batch in batch_list], dim=0
+                    ),
+                    "forces_label": torch.cat(
+                        [batch.force for batch in batch_list], dim=0
+                    )
+                }
+            except:
+                target = {
+                    "energy_label": torch.cat(
+                        [torch.zeros_like(batch.batch) for batch in batch_list], dim=0
+                    ),
+                    "forces_label": torch.cat(
+                        [batch.force for batch in batch_list], dim=0
+                    )
+                }
 
             if per_image:
                 systemids = [
@@ -802,9 +812,7 @@ class ForcesTrainer(BaseTrainer):
                 # might be repeated to make no. of samples even across GPUs.
                 _, idx = np.unique(gather_results["ids"], return_index=True)
                 gather_results["ids"] = np.array(gather_results["ids"])[idx]
-                gather_results["pos"] = np.concatenate(
-                    np.array(gather_results["pos"])[idx]
-                )
+                gather_results["pos"] = np.concatenate([gather_results["pos"][idx_order] for idx_order in idx])
                 gather_results["chunk_idx"] = np.cumsum(
                     np.array(gather_results["chunk_idx"])[idx]
                 )[
