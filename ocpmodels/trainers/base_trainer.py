@@ -12,7 +12,7 @@ import random
 import subprocess
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import cast, Dict, Optional
+from typing import Dict, Optional
 
 import numpy as np
 import torch
@@ -80,15 +80,18 @@ class BaseTrainer(ABC):
         self.epoch = 0
         self.step = 0
 
+        self.device: torch.device
         if torch.cuda.is_available() and not self.cpu:
             self.device = torch.device(f"cuda:{local_rank}")
         else:
             self.device = torch.device("cpu")
             self.cpu = True  # handle case when `--cpu` isn't specified
             # but there are no gpu devices available
+
         if run_dir is None:
             run_dir = os.getcwd()
 
+        self.timestamp_id: str
         if timestamp_id is None:
             timestamp = torch.tensor(datetime.datetime.now().timestamp()).to(
                 self.device
@@ -203,7 +206,7 @@ class BaseTrainer(ABC):
             )
 
         if distutils.is_master():
-            print(yaml.dump(self.config, default_flow_style=False))
+            logging.info(yaml.dump(self.config, default_flow_style=False))
         self.load()
 
         self.evaluator = Evaluator(task=name)
@@ -402,15 +405,21 @@ class BaseTrainer(ABC):
                 self.model, device_ids=[self.device]
             )
 
-    def load_checkpoint(self, checkpoint_path: str) -> None:
-        if not os.path.isfile(checkpoint_path):
-            raise FileNotFoundError(
-                errno.ENOENT, "Checkpoint file not found", checkpoint_path
-            )
+    def load_checkpoint(
+        self, checkpoint_path: str, checkpoint: Dict = {}
+    ) -> None:
+        if not checkpoint:
+            if not os.path.isfile(checkpoint_path):
+                raise FileNotFoundError(
+                    errno.ENOENT, "Checkpoint file not found", checkpoint_path
+                )
+            else:
+                logging.info(f"Loading checkpoint from: {checkpoint_path}")
+                map_location = torch.device("cpu") if self.cpu else self.device
+                checkpoint = torch.load(
+                    checkpoint_path, map_location=map_location
+                )
 
-        logging.info(f"Loading checkpoint from: {checkpoint_path}")
-        map_location = torch.device("cpu") if self.cpu else self.device
-        checkpoint = torch.load(checkpoint_path, map_location=map_location)
         self.epoch = checkpoint.get("epoch", 0)
         self.step = checkpoint.get("step", 0)
         self.best_val_metric = checkpoint.get("best_val_metric", None)
@@ -794,7 +803,9 @@ class BaseTrainer(ABC):
             # Because of how distributed sampler works, some system ids
             # might be repeated to make no. of samples even across GPUs.
             _, idx = np.unique(gather_results["ids"], return_index=True)
-            gather_results["ids"] = np.array(gather_results["ids"])[idx]
+            gather_results["ids"] = np.array(
+                gather_results["ids"],
+            )[idx]
             for k in keys:
                 if k.find("forces") >= 0:
                     gather_results[k] = np.concatenate(
@@ -802,10 +813,14 @@ class BaseTrainer(ABC):
                     )
                 elif k == "chunk_idx":
                     gather_results[k] = np.cumsum(
-                        np.array(gather_results[k])[idx]
+                        np.array(
+                            gather_results[k],
+                        )[idx]
                     )[:-1]
                 else:
-                    gather_results[k] = np.array(gather_results[k])[idx]
+                    gather_results[k] = np.array(
+                        gather_results[k],
+                    )[idx]
 
             logging.info(f"Writing results to {full_path}")
             np.savez_compressed(full_path, **gather_results)

@@ -7,12 +7,11 @@ LICENSE file in the root directory of this source tree.
 
 import logging
 import os
-import pathlib
 from collections import defaultdict
-from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 import numpy as np
+import numpy.typing as npt
 import torch
 import torch_geometric
 from tqdm import tqdm
@@ -156,7 +155,7 @@ class ForcesTrainer(BaseTrainer):
         per_image: bool = True,
         results_file=None,
         disable_tqdm: bool = False,
-    ):
+    ) -> Dict[str, npt.NDArray[np.float_]]:
         ensure_fitted(self._unwrapped_model, warn=True)
 
         if distutils.is_master() and not disable_tqdm:
