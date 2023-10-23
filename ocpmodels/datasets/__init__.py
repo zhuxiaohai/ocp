@@ -13,5 +13,10 @@ from .lmdb_dataset import (
     SinglePointLmdbDataset,
     TrajectoryLmdbDataset,
     data_list_collater,
+    data_list_collater_multimodal,
 )
 from .oc22_lmdb_dataset import OC22LmdbDataset
+
+from .hf_datasets import (
+    HuggingfaceDataset,
+)

@@ -98,3 +98,21 @@ class RelxationTask(BaseTask):
         ), "Relax dataset is required for making predictions"
         assert self.config["checkpoint"]
         self.trainer.run_relaxations()
+
+
+@registry.register_task("predict_async")
+class PredictAsyncTask(BaseTask):
+    def run(self) -> None:
+        assert (
+            self.trainer.test_loader is not None
+        ), "Test dataset is required for making predictions"
+        results_file = "predictions_async"
+        self.trainer.predict_async(
+            self.trainer.test_loader,
+            results_file=results_file,
+            disable_tqdm=self.config.get("hide_eval_progressbar", False),
+            per_image=self.config["task"].get("per_image", False),
+            other_output_keys_in_prediction=self.config["task"].get(
+                "other_output_keys_in_prediction", []
+            ),
+        )

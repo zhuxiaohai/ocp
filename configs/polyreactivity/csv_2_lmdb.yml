@@ -1,0 +1,4 @@
+input:
+  data/polyreactivity/test_sequence_csv
+output:
+  data/polyreactivity/test_sequence_lmdb

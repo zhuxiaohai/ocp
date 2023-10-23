@@ -998,24 +998,45 @@ def new_trainer_context(*, config: Dict[str, Any], args: Namespace):
             config.get("trainer", "energy")
         )
         assert trainer_cls is not None, "Trainer not found"
-        trainer = trainer_cls(
-            task=config["task"],
-            model=config["model"],
-            dataset=config["dataset"],
-            optimizer=config["optim"],
-            identifier=config["identifier"],
-            timestamp_id=config.get("timestamp_id", None),
-            run_dir=config.get("run_dir", "./"),
-            is_debug=config.get("is_debug", False),
-            print_every=config.get("print_every", 10),
-            seed=config.get("seed", 0),
-            logger=config.get("logger", "tensorboard"),
-            local_rank=config["local_rank"],
-            amp=config.get("amp", False),
-            cpu=config.get("cpu", False),
-            slurm=config.get("slurm", {}),
-            noddp=config.get("noddp", False),
-        )
+        if trainer_cls.__name__ == "GeneralTrainer":
+            trainer = trainer_cls(
+                task=config["task"],
+                model=config["model"],
+                dataset=config["dataset"],
+                optimizer=config["optim"],
+                identifier=config["identifier"],
+                timestamp_id=config.get("timestamp_id", None),
+                run_dir=config.get("run_dir", "./"),
+                is_debug=config.get("is_debug", False),
+                print_every=config.get("print_every", 10),
+                seed=config.get("seed", 0),
+                logger=config.get("logger", "tensorboard"),
+                local_rank=config["local_rank"],
+                amp=config.get("amp", False),
+                cpu=config.get("cpu", False),
+                slurm=config.get("slurm", {}),
+                noddp=config.get("noddp", False),
+                config=config,
+            )
+        else:
+            trainer = trainer_cls(
+                task=config["task"],
+                model=config["model"],
+                dataset=config["dataset"],
+                optimizer=config["optim"],
+                identifier=config["identifier"],
+                timestamp_id=config.get("timestamp_id", None),
+                run_dir=config.get("run_dir", "./"),
+                is_debug=config.get("is_debug", False),
+                print_every=config.get("print_every", 10),
+                seed=config.get("seed", 0),
+                logger=config.get("logger", "tensorboard"),
+                local_rank=config["local_rank"],
+                amp=config.get("amp", False),
+                cpu=config.get("cpu", False),
+                slurm=config.get("slurm", {}),
+                noddp=config.get("noddp", False),
+            )
 
         task_cls = registry.get_task_class(config["mode"])
         assert task_cls is not None, "Task not found"

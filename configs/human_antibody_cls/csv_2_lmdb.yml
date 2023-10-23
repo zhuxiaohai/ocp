@@ -1,0 +1,4 @@
+input:
+  data/human_antibody_cls/val_sequence_small_csv
+output:
+  data/human_antibody_cls/val_sequence_small_lmdb

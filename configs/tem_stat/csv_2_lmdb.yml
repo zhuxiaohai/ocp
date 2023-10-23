@@ -1,0 +1,4 @@
+input:
+  data/tem_stat/val_sequence_small_csv
+output:
+  data/tem_stat/val_sequence_small_lmdb

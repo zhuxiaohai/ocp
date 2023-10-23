@@ -1,0 +1,4 @@
+input:
+  data/solubility/test_sequence_csv
+output:
+  data/solubility/test_sequence_lmdb

@@ -253,3 +253,34 @@ def data_list_collater(
             )
 
     return batch
+
+
+def data_list_collater_multimodal(
+    data_list: List[BaseData], otf_graph: bool = False, **kwargs
+) -> BaseData:
+    batch = Batch.from_data_list(data_list)
+
+    if not otf_graph:
+        try:
+            n_neighbors = []
+            for _, data in enumerate(data_list):
+                n_index = data.edge_index[1, :]
+                n_neighbors.append(n_index.shape[0])
+            batch.neighbors = torch.tensor(n_neighbors)
+        except:
+            pass
+
+        try:
+            tokenizer = kwargs["tokenizer"]
+            token_encoding = tokenizer.batch_encode_plus(batch.sequence,
+                                                         add_special_tokens=True,
+                                                         padding='longest',
+                                                         return_tensors='pt',
+                                                         truncation=True,
+                                                         max_length=1000)
+            for key in token_encoding:
+                batch[key] = token_encoding[key]
+        except:
+            pass
+
+    return batch

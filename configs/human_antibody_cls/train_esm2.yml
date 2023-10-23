@@ -1,0 +1,105 @@
+trainer: general
+
+dataset:
+  - src: data/tem_stat/val_esm2_emb_small_lmdb2
+  - src: data/tem_stat/val_esm2_emb_small_lmdb2
+
+logger: tensorboard
+
+task:
+  dataset: trajectory_lmdb
+  batch_size: 32
+  eval_batch_size: 32
+  print_every: 10
+  eval_every: 10
+  identifier: t5_emb
+  num_workers: 4
+  max_epochs: 10
+  primary_metric: MulticlassAccuracy
+  primary_metric_max: True
+  optim: get_optimizer
+  scheduler: get_scheduler
+  evaluators: multitask_metrics
+  losses: multitask_losses
+  loss_loggers: multitask_meters
+  tasks:
+    - name: stability_at_40
+#      weight: 1
+#  normalizers: multitask_normalizers
+
+evaluators:
+  - name: stability_at_40
+    attributes:
+#      - rename: MulticlassAccuracy
+      - name: Accuracy
+        attributes: {"task": "multiclass", "num_classes": 2}
+
+losses:
+  - name: stability_at_40
+    attributes:
+      - name: CrossEntropyLoss
+        attributes: {}
+
+loss_loggers:
+  - name: stability_at_40
+    attributes:
+      - rename: loss
+        name: MeanMetric
+        attributes: {}
+
+#normalizers:
+#  - name: classification
+#    normalize_label: True
+#    attributes: {"target_mean": -0.7554450631141663, "target_std": 2.887317180633545}
+
+model:
+  name: huggingface_task
+#  tokenizer: facebook/esm2_t30_150M_UR50D
+  attributes: {
+#    "embedding":
+#      {
+#        "name": "huggingface_esm_embedding",
+#        "attributes":
+#          {
+#            "pretrained_model_name_or_path": "facebook/esm2_t30_150M_UR50D",
+#            "add_pooling_layer": False
+#          }
+#      },
+    "embedding":
+      {
+        "name": "concat_dense",
+        "attributes":
+          {
+            "fields": ["t5_embedding"],
+          }
+      },
+    "task":
+        {
+          "name": "mlp",
+          "attributes":
+            {
+              "input_size": 1024,
+              "hidden_sizes": [512, 256],
+              "num_labels": 2,
+              "dropout_rate": 0.0
+            }
+        }
+  }
+
+optim:
+  name: Adam
+  lr_initial: 0.001
+#  weight_decay: 0.2
+#  weight_decay_containing: ["embedding", "frequencies", "bias"]
+
+scheduler:
+  scheduler: "ReduceLROnPlateau"
+  factor: 0.6
+  patience: 10
+#  lr_gamma: 0.1
+#  lr_milestones: # steps at which lr_initial <- lr_initial * lr_gamma
+#    - 52083
+#    - 83333
+#    - 104166
+#  warmup_steps: 31250
+#  warmup_factor: 0.2

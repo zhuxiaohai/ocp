@@ -17,3 +17,5 @@ from .painn.painn import PaiNN
 from .schnet import SchNetWrap as SchNet
 from .scn.scn import SphericalChannelNetwork
 from .spinconv import spinconv
+from .hf_embed_net import HuggingfaceTask
+from .densenet import MLP, MLPBlock

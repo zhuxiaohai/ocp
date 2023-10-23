@@ -17,9 +17,10 @@ import numpy.typing as npt
 import torch
 from torch.utils.data import BatchSampler, DistributedSampler, Sampler
 from torch_geometric.data.data import BaseData
+from transformers import AutoTokenizer, T5Tokenizer
 
 from ocpmodels.common import distutils, gp_utils
-from ocpmodels.datasets import data_list_collater
+from ocpmodels.datasets import data_list_collater, data_list_collater_multimodal
 
 
 class OCPDataParallel(torch.nn.DataParallel):
@@ -289,3 +290,42 @@ class BalancedBatchSampler(Sampler):
             # Since DistributedSampler pads the last batch
             # this should always have an entry for each replica.
             yield idx_all[local_idx_balanced[self.rank]]
+
+
+class ParallelCollaterMultimodal:
+    def __init__(self, num_gpus: int, otf_graph: bool = False, tokenizer_model_path: str = None) -> None:
+        self.num_gpus = num_gpus
+        self.otf_graph = otf_graph
+        self.tokenizer_model_path = tokenizer_model_path
+        if tokenizer_model_path and tokenizer_model_path.find("prot_t5") >= 0:
+            self.tokenizer = T5Tokenizer.from_pretrained(tokenizer_model_path, do_lower_case=False)
+        elif tokenizer_model_path:
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_model_path)
+        else:
+            self.tokenizer = None
+
+    def __call__(self, data_list: List[BaseData]) -> List[BaseData]:
+        if self.num_gpus in [0, 1]:  # adds cpu-only case
+            batch = data_list_collater_multimodal(data_list, otf_graph=self.otf_graph, tokenizer=self.tokenizer)
+            return [batch]
+
+        else:
+            num_devices = min(self.num_gpus, len(data_list))
+
+            count = torch.tensor([data.num_nodes for data in data_list])
+            cumsum = count.cumsum(0)
+            cumsum = torch.cat([cumsum.new_zeros(1), cumsum], dim=0)
+            device_id = (
+                num_devices * cumsum.to(torch.float) / cumsum[-1].item()
+            )
+            device_id = (device_id[:-1] + device_id[1:]) / 2.0
+            device_id = device_id.to(torch.long)
+            split = device_id.bincount().cumsum(0)
+            split = torch.cat([split.new_zeros(1), split], dim=0)
+            split = torch.unique(split, sorted=True)
+            split = split.tolist()
+
+            return [
+                data_list_collater_multimodal(data_list[split[i] : split[i + 1]], tokenizer=self.tokenizer)
+                for i in range(len(split) - 1)
+            ]

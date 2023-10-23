@@ -1,0 +1,13 @@
+input:
+  # make sure the labels, if any, are in the first dataset
+  - src: data/polyreactivity/test_t5_emb_pkl
+    fields: {"sequence": "t5_embedding"}
+  #  feature_selection: ssss.pkl # if not specified, all features will be used
+  - src: data/polyreactivity/test_esm2_emb_pkl
+    fields: { "sequence": "esm2_embedding" }
+  #  feature_selection: ssss.pkl # if not specified, all features will be used
+  - src: data/polyreactivity/test_ifeature_AAC_pkl
+    fields: {"AAC": "AAC"}
+  #  feature_selection: ssss2.pkl # if not specified, all features will be used
+output:
+  data/polyreactivity/test_t5_emb_esm2_emb_ifeature_AAC_lmdb
